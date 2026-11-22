@@ -202,7 +202,7 @@ To make the application 100% live on the internet, deploy the backend to **[Rend
    * **Name**: `lead-manager-api` (or your choice)
    * **Root Directory**: `server`
    * **Runtime**: `Node`
-   * **Build Command**: `npm install && npx prisma generate && npx prisma db push && npm run db:seed && npm run build`
+   * **Build Command**: `npm install --include=dev && npx prisma generate && npx prisma db push && npm run db:seed && npm run build`
    * **Start Command**: `npm start`
    * **Instance Type**: `Free`
 5. Under **Environment Variables**, add:
