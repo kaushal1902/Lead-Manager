@@ -1,5 +1,5 @@
 import { Building2, Phone, Mail, Pencil, Trash2, Calendar, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
-import type { Lead } from '../../types/lead';
+import type { Lead, LeadStatus } from '../../types/lead';
 import type { SortField, SortOrder } from './LeadToolbar';
 import StatusBadge from './StatusBadge';
 import SourceBadge from './SourceBadge';
@@ -16,6 +16,7 @@ interface LeadTableProps {
   onClearFilters?: () => void;
   onEditLead?: (lead: Lead) => void;
   onDeleteLead?: (lead: Lead) => void;
+  onQuickStatusChange?: (lead: Lead, newStatus: LeadStatus) => void;
   onAddLead?: () => void;
 }
 
@@ -29,6 +30,7 @@ export default function LeadTable({
   onClearFilters,
   onEditLead,
   onDeleteLead,
+  onQuickStatusChange,
   onAddLead,
 }: LeadTableProps) {
   // Format Date (e.g. Nov 22, 2026)
@@ -85,7 +87,7 @@ export default function LeadTable({
               <th className="py-3.5 px-6">
                 <button
                   onClick={() => handleColumnSort('name')}
-                  className="flex items-center gap-1.5 hover:text-slate-900 group/th transition-colors"
+                  className="flex items-center gap-1.5 hover:text-slate-900 group/th transition-colors cursor-pointer"
                 >
                   <span>Lead / Contact</span>
                   {renderSortIcon('name')}
@@ -96,7 +98,7 @@ export default function LeadTable({
               <th className="py-3.5 px-6 hidden sm:table-cell">
                 <button
                   onClick={() => handleColumnSort('company')}
-                  className="flex items-center gap-1.5 hover:text-slate-900 group/th transition-colors"
+                  className="flex items-center gap-1.5 hover:text-slate-900 group/th transition-colors cursor-pointer"
                 >
                   <span>Company</span>
                   {renderSortIcon('company')}
@@ -113,7 +115,7 @@ export default function LeadTable({
               <th className="py-3.5 px-6">
                 <button
                   onClick={() => handleColumnSort('status')}
-                  className="flex items-center gap-1.5 hover:text-slate-900 group/th transition-colors"
+                  className="flex items-center gap-1.5 hover:text-slate-900 group/th transition-colors cursor-pointer"
                 >
                   <span>Status</span>
                   {renderSortIcon('status')}
@@ -124,7 +126,7 @@ export default function LeadTable({
               <th className="py-3.5 px-6 hidden xl:table-cell">
                 <button
                   onClick={() => handleColumnSort('createdAt')}
-                  className="flex items-center gap-1.5 hover:text-slate-900 group/th transition-colors"
+                  className="flex items-center gap-1.5 hover:text-slate-900 group/th transition-colors cursor-pointer"
                 >
                   <span>Added</span>
                   {renderSortIcon('createdAt')}
@@ -213,9 +215,24 @@ export default function LeadTable({
                     <SourceBadge source={lead.source} />
                   </td>
 
-                  {/* Status Badge */}
+                  {/* Status Badge with Quick Changer */}
                   <td className="py-3.5 px-6">
-                    <StatusBadge status={lead.status} />
+                    <div
+                      className="relative inline-flex items-center group/badge cursor-pointer"
+                      title="Click badge to quick-change status"
+                    >
+                      <StatusBadge status={lead.status} />
+                      <select
+                        value={lead.status}
+                        onChange={(e) => onQuickStatusChange?.(lead, e.target.value as LeadStatus)}
+                        className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                      >
+                        <option value="New">New Lead</option>
+                        <option value="Contacted">Contacted</option>
+                        <option value="Qualified">Qualified</option>
+                        <option value="Lost">Lost / Closed</option>
+                      </select>
+                    </div>
                   </td>
 
                   {/* Created At */}
@@ -232,14 +249,14 @@ export default function LeadTable({
                       <button
                         onClick={() => onEditLead?.(lead)}
                         title="Edit lead"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
                         onClick={() => onDeleteLead?.(lead)}
                         title="Delete lead"
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

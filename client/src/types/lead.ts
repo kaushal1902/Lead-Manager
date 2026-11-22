@@ -15,6 +15,18 @@ export interface Lead {
   updatedAt: string;
 }
 
+export interface CreateLeadInput {
+  name: string;
+  email: string;
+  phone?: string | null;
+  company?: string | null;
+  source: LeadSource;
+  status: LeadStatus;
+  notes?: string | null;
+}
+
+export type UpdateLeadInput = Partial<CreateLeadInput>;
+
 export interface LeadStats {
   total: number;
   new: number;

@@ -3,8 +3,19 @@ import Header from './components/layout/Header';
 import KpiCards from './components/dashboard/KpiCards';
 import LeadTable from './components/leads/LeadTable';
 import LeadToolbar, { type SortField, type SortOrder } from './components/leads/LeadToolbar';
-import type { Lead, LeadStats, LeadStatus, LeadSource } from './types/lead';
-import { getLeads, getLeadStats, checkApiHealth } from './services/api';
+import LeadModal from './components/leads/LeadModal';
+import DeleteConfirmModal from './components/leads/DeleteConfirmModal';
+import Toast, { type ToastMessage } from './components/common/Toast';
+import type { Lead, LeadStats, LeadStatus, LeadSource, CreateLeadInput } from './types/lead';
+import {
+  getLeads,
+  getLeadStats,
+  checkApiHealth,
+  createLead,
+  updateLead,
+  updateLeadStatus,
+  deleteLead,
+} from './services/api';
 import { useDebounce } from './hooks/useDebounce';
 import { Sparkles } from 'lucide-react';
 
@@ -22,6 +33,28 @@ export default function App() {
   const [sourceFilter, setSourceFilter] = useState<LeadSource | 'All'>('All');
   const [sortBy, setSortBy] = useState<SortField>('createdAt');
   const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
+
+  // Add / Edit Modal State (Milestone 7)
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Delete Confirmation Modal State (Milestone 8)
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState<boolean>(false);
+  const [leadToDelete, setLeadToDelete] = useState<Lead | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
+
+  // Floating Toast State
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    const id = Date.now().toString() + Math.random().toString(36).substring(2, 5);
+    setToasts((prev) => [...prev, { id, message, type }]);
+  }, []);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
 
   // Load leads and metrics
   const loadData = useCallback(async (showRefreshingSpinner = false) => {
@@ -45,11 +78,12 @@ export default function App() {
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
       setIsOnline(false);
+      showToast('Could not sync data with server. Check API connection.', 'error');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [debouncedSearch, statusFilter, sourceFilter, sortBy, sortOrder]);
+  }, [debouncedSearch, statusFilter, sourceFilter, sortBy, sortOrder, showToast]);
 
   useEffect(() => {
     loadData();
@@ -92,16 +126,104 @@ export default function App() {
     sortBy !== 'createdAt' ||
     sortOrder !== 'desc';
 
-  const handleAddLeadTrigger = () => {
-    alert('Add Lead Modal will be introduced in Milestone 7.');
+  // Add Lead Trigger
+  const handleOpenAddModal = () => {
+    setEditingLead(null);
+    setIsModalOpen(true);
   };
 
-  const handleEditLeadTrigger = (lead: Lead) => {
-    alert(`Edit Lead for "${lead.name}" will be connected in Milestone 7.`);
+  // Edit Lead Trigger
+  const handleOpenEditModal = (lead: Lead) => {
+    setEditingLead(lead);
+    setIsModalOpen(true);
   };
 
-  const handleDeleteLeadTrigger = (lead: Lead) => {
-    alert(`Delete confirmation modal for "${lead.name}" will be connected in Milestone 8.`);
+  // Delete Lead Trigger (Milestone 8)
+  const handleOpenDeleteModal = (lead: Lead) => {
+    setLeadToDelete(lead);
+    setIsDeleteDialogOpen(true);
+  };
+
+  // Confirm Delete Action with Optimistic UI
+  const handleConfirmDelete = async () => {
+    if (!leadToDelete) return;
+    const previousLeads = [...leads];
+    const previousStats = stats;
+
+    setIsDeleting(true);
+
+    // Optimistic UI removal
+    setLeads((prev) => prev.filter((l) => l.id !== leadToDelete.id));
+
+    try {
+      await deleteLead(leadToDelete.id);
+      showToast(`Lead "${leadToDelete.name}" permanently deleted.`, 'success');
+      setIsDeleteDialogOpen(false);
+      setLeadToDelete(null);
+
+      // Refresh KPI statistics
+      const updatedStats = await getLeadStats();
+      setStats(updatedStats);
+    } catch (err: unknown) {
+      // Rollback on failure
+      setLeads(previousLeads);
+      setStats(previousStats);
+      const errorMsg = err instanceof Error ? err.message : 'Failed to delete lead';
+      showToast(errorMsg, 'error');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Quick Status Update with Optimistic UI
+  const handleQuickStatusChange = async (lead: Lead, newStatus: LeadStatus) => {
+    if (lead.status === newStatus) return;
+
+    const previousLeads = [...leads];
+    const previousStats = stats;
+
+    // Optimistic UI update
+    setLeads((prev) =>
+      prev.map((l) => (l.id === lead.id ? { ...l, status: newStatus } : l))
+    );
+
+    try {
+      await updateLeadStatus(lead.id, newStatus);
+      showToast(`Updated "${lead.name}" status to ${newStatus}.`, 'info');
+
+      // Refresh KPI statistics
+      const updatedStats = await getLeadStats();
+      setStats(updatedStats);
+    } catch (err: unknown) {
+      // Rollback on failure
+      setLeads(previousLeads);
+      setStats(previousStats);
+      const errorMsg = err instanceof Error ? err.message : 'Failed to update status';
+      showToast(errorMsg, 'error');
+    }
+  };
+
+  // Form Submit Handler (Add / Edit)
+  const handleFormSubmit = async (formData: CreateLeadInput) => {
+    setIsSubmitting(true);
+    try {
+      if (editingLead) {
+        await updateLead(editingLead.id, formData);
+        showToast(`Lead "${formData.name}" updated successfully!`, 'success');
+      } else {
+        await createLead(formData);
+        showToast(`Lead "${formData.name}" added to pipeline!`, 'success');
+      }
+
+      setIsModalOpen(false);
+      setEditingLead(null);
+      await loadData();
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : 'An error occurred while saving lead.';
+      showToast(errorMsg, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -111,7 +233,7 @@ export default function App() {
         onRefresh={() => loadData(true)}
         isRefreshing={isRefreshing}
         isOnline={isOnline}
-        onAddLead={handleAddLeadTrigger}
+        onAddLead={handleOpenAddModal}
       />
 
       {/* Main Container */}
@@ -123,11 +245,11 @@ export default function App() {
               <Sparkles className="w-3.5 h-3.5" />
             </span>
             <span>
-              <strong>Milestone 6 Completed:</strong> Real-time Search, Status Filter Pills, Source Dropdown & Table Sorting.
+              <strong>Milestone 8 Completed:</strong> Custom Delete Confirmation Modal with Optimistic State Rollback.
             </span>
           </div>
           <span className="hidden sm:inline font-mono text-[11px] text-blue-600 bg-blue-100/60 px-2 py-0.5 rounded">
-            Next: Add/Edit Lead Modal (M7)
+            Next: Offline Fallback & Mobile Polish (M9)
           </span>
         </div>
 
@@ -168,7 +290,7 @@ export default function App() {
           totalFilteredCount={leads.length}
         />
 
-        {/* Leads Data Table (Milestones 5 & 6) */}
+        {/* Leads Data Table (Milestones 5, 6, 7 & 8) */}
         <LeadTable
           leads={leads}
           isLoading={isLoading}
@@ -177,11 +299,39 @@ export default function App() {
           sortOrder={sortOrder}
           onSortChange={handleSortChange}
           onClearFilters={handleResetFilters}
-          onEditLead={handleEditLeadTrigger}
-          onDeleteLead={handleDeleteLeadTrigger}
-          onAddLead={handleAddLeadTrigger}
+          onEditLead={handleOpenEditModal}
+          onDeleteLead={handleOpenDeleteModal}
+          onQuickStatusChange={handleQuickStatusChange}
+          onAddLead={handleOpenAddModal}
         />
       </main>
+
+      {/* Add / Edit Lead Modal (Milestone 7) */}
+      <LeadModal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingLead(null);
+        }}
+        onSubmit={handleFormSubmit}
+        initialData={editingLead}
+        isSubmitting={isSubmitting}
+      />
+
+      {/* Delete Confirmation Modal (Milestone 8) */}
+      <DeleteConfirmModal
+        isOpen={isDeleteDialogOpen}
+        lead={leadToDelete}
+        onClose={() => {
+          setIsDeleteDialogOpen(false);
+          setLeadToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        isDeleting={isDeleting}
+      />
+
+      {/* Floating Toast Notifications */}
+      <Toast toasts={toasts} onDismiss={dismissToast} />
 
       {/* Footer */}
       <footer className="border-t border-slate-200/60 bg-white py-4 mt-auto">
