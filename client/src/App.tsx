@@ -2,8 +2,10 @@ import { useEffect, useState, useCallback } from 'react';
 import Header from './components/layout/Header';
 import KpiCards from './components/dashboard/KpiCards';
 import LeadTable from './components/leads/LeadTable';
-import type { Lead, LeadStats, LeadStatus } from './types/lead';
+import LeadToolbar, { type SortField, type SortOrder } from './components/leads/LeadToolbar';
+import type { Lead, LeadStats, LeadStatus, LeadSource } from './types/lead';
 import { getLeads, getLeadStats, checkApiHealth } from './services/api';
+import { useDebounce } from './hooks/useDebounce';
 import { Sparkles } from 'lucide-react';
 
 export default function App() {
@@ -12,7 +14,14 @@ export default function App() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [isOnline, setIsOnline] = useState<boolean>(true);
+
+  // Search & Filter State
+  const [searchTerm, setSearchTerm] = useState<string>('');
+  const debouncedSearch = useDebounce(searchTerm, 300);
   const [statusFilter, setStatusFilter] = useState<LeadStatus | 'All'>('All');
+  const [sourceFilter, setSourceFilter] = useState<LeadSource | 'All'>('All');
+  const [sortBy, setSortBy] = useState<SortField>('createdAt');
+  const [sortOrder, setSortOrder] = useState<SortOrder>('desc');
 
   // Load leads and metrics
   const loadData = useCallback(async (showRefreshingSpinner = false) => {
@@ -22,9 +31,11 @@ export default function App() {
         checkApiHealth(),
         getLeadStats(),
         getLeads({
+          search: debouncedSearch,
           status: statusFilter !== 'All' ? statusFilter : undefined,
-          sortBy: 'createdAt',
-          order: 'desc',
+          source: sourceFilter !== 'All' ? sourceFilter : undefined,
+          sortBy,
+          order: sortOrder,
         }),
       ]);
 
@@ -38,7 +49,7 @@ export default function App() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [statusFilter]);
+  }, [debouncedSearch, statusFilter, sourceFilter, sortBy, sortOrder]);
 
   useEffect(() => {
     loadData();
@@ -57,9 +68,29 @@ export default function App() {
     setStatusFilter(status);
   };
 
-  const handleClearFilters = () => {
-    setStatusFilter('All');
+  const handleSourceSelect = (source: LeadSource | 'All') => {
+    setSourceFilter(source);
   };
+
+  const handleSortChange = (field: SortField, order: SortOrder) => {
+    setSortBy(field);
+    setSortOrder(order);
+  };
+
+  const handleResetFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('All');
+    setSourceFilter('All');
+    setSortBy('createdAt');
+    setSortOrder('desc');
+  };
+
+  const hasActiveFilters =
+    searchTerm.trim() !== '' ||
+    statusFilter !== 'All' ||
+    sourceFilter !== 'All' ||
+    sortBy !== 'createdAt' ||
+    sortOrder !== 'desc';
 
   const handleAddLeadTrigger = () => {
     alert('Add Lead Modal will be introduced in Milestone 7.');
@@ -74,86 +105,91 @@ export default function App() {
   };
 
   return (
-        <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
-          {/* Top Navigation Header */}
-          <Header
-            onRefresh={() => loadData(true)}
-            isRefreshing={isRefreshing}
-            isOnline={isOnline}
-            onAddLead={handleAddLeadTrigger}
-          />
+    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-sans">
+      {/* Top Navigation Header */}
+      <Header
+        onRefresh={() => loadData(true)}
+        isRefreshing={isRefreshing}
+        isOnline={isOnline}
+        onAddLead={handleAddLeadTrigger}
+      />
 
-                {/* Main Container */}
-                <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                  {/* Milestone Progress Banner */}
-                  <div className="flex items-center justify-between p-3.5 rounded-xl bg-blue-50/70 border border-blue-200/80 mb-6 text-xs text-blue-900">
-                    <div className="flex items-center gap-2">
-                      <span className="p-1 rounded bg-blue-100 text-blue-700">
-                        <Sparkles className="w-3.5 h-3.5" />
-                      </span>
-                      <span>
-                        <strong>Milestones 4 & 5 Completed:</strong> Modern App Shell, Live KPI Cards, and Leads Table with Status Badges.
-                      </span>
-                    </div>
-                    <span className="hidden sm:inline font-mono text-[11px] text-blue-600 bg-blue-100/60 px-2 py-0.5 rounded">
-                      Next: Search & Filters (M6)
-                    </span>
-                  </div>
+      {/* Main Container */}
+      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Milestone Progress Banner */}
+        <div className="flex items-center justify-between p-3.5 rounded-xl bg-blue-50/70 border border-blue-200/80 mb-6 text-xs text-blue-900">
+          <div className="flex items-center gap-2">
+            <span className="p-1 rounded bg-blue-100 text-blue-700">
+              <Sparkles className="w-3.5 h-3.5" />
+            </span>
+            <span>
+              <strong>Milestone 6 Completed:</strong> Real-time Search, Status Filter Pills, Source Dropdown & Table Sorting.
+            </span>
+          </div>
+          <span className="hidden sm:inline font-mono text-[11px] text-blue-600 bg-blue-100/60 px-2 py-0.5 rounded">
+            Next: Add/Edit Lead Modal (M7)
+          </span>
+        </div>
 
-                      {/* Section Header */}
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-                        <div>
-                          <h2 className="text-xl font-bold tracking-tight text-slate-900">
-                            Pipeline Overview
-                          </h2>
-                          <p className="text-xs text-slate-500 mt-0.5">
-                            Real-time summary of sales leads segmented by qualification status
-                          </p>
-                        </div>
+        {/* Section Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 className="text-xl font-bold tracking-tight text-slate-900">
+              Pipeline Overview
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Real-time summary of sales leads segmented by qualification status
+            </p>
+          </div>
+        </div>
 
-                        {statusFilter !== 'All' && (
-                          <div className="flex items-center gap-2 text-xs">
-                            <span className="text-slate-500">Filtered by:</span>
-                            <span className="font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full">
-                              {statusFilter}
-                            </span>
-                            <button
-                              onClick={handleClearFilters}
-                              className="text-slate-400 hover:text-slate-700 underline text-[11px] ml-1"
-                            >
-                              Clear
-                            </button>
-                          </div>
-          )}
-                    </div>
+        {/* Status Summary KPI Cards (Milestone 4) */}
+        <KpiCards
+          stats={stats}
+          activeStatusFilter={statusFilter}
+          onSelectStatus={handleStatusSelect}
+          isLoading={isLoading}
+        />
 
-                      {/* Status Summary KPI Cards (Milestone 4) */}
-                      <KpiCards
-                        stats={stats}
-                        activeStatusFilter={statusFilter}
-                        onSelectStatus={handleStatusSelect}
-                        isLoading={isLoading}
-                      />
+        {/* Toolbar: Search, Filters & Sorting Controls (Milestone 6) */}
+        <LeadToolbar
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          statusFilter={statusFilter}
+          onStatusChange={handleStatusSelect}
+          sourceFilter={sourceFilter}
+          onSourceChange={handleSourceSelect}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSortChange={handleSortChange}
+          stats={stats}
+          onResetFilters={handleResetFilters}
+          hasActiveFilters={hasActiveFilters}
+          totalFilteredCount={leads.length}
+        />
 
-                      {/* Leads Data Table (Milestone 5) */}
-                      <LeadTable
-                        leads={leads}
-                        isLoading={isLoading}
-                        isFiltered={statusFilter !== 'All'}
-                        onClearFilters={handleClearFilters}
-                        onEditLead={handleEditLeadTrigger}
-                        onDeleteLead={handleDeleteLeadTrigger}
-                        onAddLead={handleAddLeadTrigger}
-                      />
-                    </main>
+        {/* Leads Data Table (Milestones 5 & 6) */}
+        <LeadTable
+          leads={leads}
+          isLoading={isLoading}
+          isFiltered={hasActiveFilters}
+          sortBy={sortBy}
+          sortOrder={sortOrder}
+          onSortChange={handleSortChange}
+          onClearFilters={handleResetFilters}
+          onEditLead={handleEditLeadTrigger}
+          onDeleteLead={handleDeleteLeadTrigger}
+          onAddLead={handleAddLeadTrigger}
+        />
+      </main>
 
-                    {/* Footer */}
-                    <footer className="border-t border-slate-200/60 bg-white py-4 mt-auto">
-                      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-2">
-                        <span>Lead Manager &bull; Screening Assignment for Meru Technosoft Pvt. Ltd.</span>
-                        <span>Express REST API + SQLite Prisma + React Vite + Tailwind CSS</span>
-                      </div>
-                </footer>
-            </div>
-            );
+      {/* Footer */}
+      <footer className="border-t border-slate-200/60 bg-white py-4 mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-2">
+          <span>Lead Manager &bull; Screening Assignment for Meru Technosoft Pvt. Ltd.</span>
+          <span>Express REST API + SQLite Prisma + React Vite + Tailwind CSS</span>
+        </div>
+      </footer>
+    </div>
+  );
 }

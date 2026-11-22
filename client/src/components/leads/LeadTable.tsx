@@ -1,5 +1,6 @@
-import { Building2, Phone, Mail, Pencil, Trash2, Calendar } from 'lucide-react';
+import { Building2, Phone, Mail, Pencil, Trash2, Calendar, ArrowUp, ArrowDown, ArrowUpDown } from 'lucide-react';
 import type { Lead } from '../../types/lead';
+import type { SortField, SortOrder } from './LeadToolbar';
 import StatusBadge from './StatusBadge';
 import SourceBadge from './SourceBadge';
 import TableSkeleton from './TableSkeleton';
@@ -9,6 +10,9 @@ interface LeadTableProps {
   leads: Lead[];
   isLoading: boolean;
   isFiltered: boolean;
+  sortBy?: SortField;
+  sortOrder?: SortOrder;
+  onSortChange?: (field: SortField, order: SortOrder) => void;
   onClearFilters?: () => void;
   onEditLead?: (lead: Lead) => void;
   onDeleteLead?: (lead: Lead) => void;
@@ -19,6 +23,9 @@ export default function LeadTable({
   leads,
   isLoading,
   isFiltered,
+  sortBy = 'createdAt',
+  sortOrder = 'desc',
+  onSortChange,
   onClearFilters,
   onEditLead,
   onDeleteLead,
@@ -47,19 +54,84 @@ export default function LeadTable({
       .toUpperCase();
   };
 
+  const handleColumnSort = (field: SortField) => {
+    if (!onSortChange) return;
+    if (sortBy === field) {
+      onSortChange(field, sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      onSortChange(field, field === 'createdAt' ? 'desc' : 'asc');
+    }
+  };
+
+  const renderSortIcon = (field: SortField) => {
+    if (sortBy !== field) {
+      return <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-0 group-hover/th:opacity-100 transition-opacity" />;
+    }
+    return sortOrder === 'asc' ? (
+      <ArrowUp className="w-3 h-3 text-indigo-600" />
+    ) : (
+      <ArrowDown className="w-3 h-3 text-indigo-600" />
+    );
+  };
+
   return (
     <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm overflow-hidden">
       {/* Table Content */}
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead>
-            <tr className="border-b border-slate-200/80 bg-slate-50/70 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-              <th className="py-3.5 px-6">Lead / Contact</th>
-              <th className="py-3.5 px-6 hidden sm:table-cell">Company</th>
+            <tr className="border-b border-slate-200/80 bg-slate-50/70 text-[11px] font-semibold uppercase tracking-wider text-slate-500 select-none">
+              {/* Lead / Contact Header */}
+              <th className="py-3.5 px-6">
+                <button
+                  onClick={() => handleColumnSort('name')}
+                  className="flex items-center gap-1.5 hover:text-slate-900 group/th transition-colors"
+                >
+                  <span>Lead / Contact</span>
+                  {renderSortIcon('name')}
+                </button>
+              </th>
+
+              {/* Company Header */}
+              <th className="py-3.5 px-6 hidden sm:table-cell">
+                <button
+                  onClick={() => handleColumnSort('company')}
+                  className="flex items-center gap-1.5 hover:text-slate-900 group/th transition-colors"
+                >
+                  <span>Company</span>
+                  {renderSortIcon('company')}
+                </button>
+              </th>
+
+              {/* Phone Header */}
               <th className="py-3.5 px-6 hidden md:table-cell">Phone</th>
+
+              {/* Source Header */}
               <th className="py-3.5 px-6 hidden lg:table-cell">Source</th>
-              <th className="py-3.5 px-6">Status</th>
-              <th className="py-3.5 px-6 hidden xl:table-cell">Added</th>
+
+              {/* Status Header */}
+              <th className="py-3.5 px-6">
+                <button
+                  onClick={() => handleColumnSort('status')}
+                  className="flex items-center gap-1.5 hover:text-slate-900 group/th transition-colors"
+                >
+                  <span>Status</span>
+                  {renderSortIcon('status')}
+                </button>
+              </th>
+
+              {/* Created Date Header */}
+              <th className="py-3.5 px-6 hidden xl:table-cell">
+                <button
+                  onClick={() => handleColumnSort('createdAt')}
+                  className="flex items-center gap-1.5 hover:text-slate-900 group/th transition-colors"
+                >
+                  <span>Added</span>
+                  {renderSortIcon('createdAt')}
+                </button>
+              </th>
+
+              {/* Actions Header */}
               <th className="py-3.5 px-6 text-right">Actions</th>
             </tr>
           </thead>
@@ -184,7 +256,9 @@ export default function LeadTable({
       {!isLoading && leads.length > 0 && (
         <div className="px-6 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between text-xs text-slate-500">
           <span>Showing <strong className="text-slate-700">{leads.length}</strong> leads</span>
-          <span className="text-slate-400">Sorted by newest first</span>
+          <span className="text-slate-400">
+            Sorted by {sortBy} ({sortOrder === 'asc' ? 'ascending' : 'descending'})
+          </span>
         </div>
       )}
     </div>
