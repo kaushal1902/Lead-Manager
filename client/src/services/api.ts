@@ -125,10 +125,14 @@ export async function deleteLead(id: string): Promise<void> {
 export async function checkApiHealth(): Promise<boolean> {
   try {
     const res = await fetch(`${API_BASE}/health`);
-    if (!res.ok) return false;
+    if (!res.ok) {
+      console.warn(`[Health Check HTTP ${res.status}] Failed to connect to ${API_BASE}/health`);
+      return false;
+    }
     const json = await res.json();
     return json.status === 'ok';
-  } catch {
+  } catch (err) {
+    console.warn(`[Health Check Error] Cannot reach backend at ${API_BASE}/health:`, err);
     return false;
   }
 }
