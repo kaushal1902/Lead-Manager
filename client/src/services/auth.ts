@@ -1,4 +1,5 @@
 import type { User, AuthResponse } from '../types/auth';
+import { API_BASE } from './config';
 
 const TOKEN_KEY = 'lead_manager_token';
 const USER_KEY = 'lead_manager_user';
@@ -28,7 +29,7 @@ export function getStoredUser(): User | null {
 }
 
 export async function loginUser(email: string, password: string): Promise<AuthResponse> {
-  const res = await fetch('/api/auth/login', {
+  const res = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
@@ -44,7 +45,7 @@ export async function loginUser(email: string, password: string): Promise<AuthRe
 }
 
 export async function registerUser(name: string, email: string, password: string): Promise<AuthResponse> {
-  const res = await fetch('/api/auth/register', {
+  const res = await fetch(`${API_BASE}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, email, password }),
@@ -64,7 +65,7 @@ export async function fetchCurrentUser(): Promise<User | null> {
   if (!token) return null;
 
   try {
-    const res = await fetch('/api/auth/me', {
+    const res = await fetch(`${API_BASE}/auth/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) {

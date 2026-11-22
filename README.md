@@ -187,6 +187,45 @@ Results: 16 passed, 0 failed (16 total)
 
 ---
 
+## 🌐 Deploying to the Cloud (Vercel Frontend + Render Backend)
+
+### Why is the server disconnected on Vercel by default?
+Vercel is designed for **static frontend hosting and serverless functions**, while our backend is a persistent **Node.js Express + SQLite** server. When deployed to Vercel, the frontend runs in the cloud and cannot reach `http://localhost:5000` (your local laptop).
+
+To make the application 100% live on the internet, deploy the backend to **[Render.com](https://render.com)** (free tier) and point Vercel to it:
+
+### Step 1: Deploy Backend to Render (2 Minutes)
+1. Sign up / Log in to **[Render.com](https://render.com)**.
+2. Click **New +** ➔ **Web Service**.
+3. Select your GitHub repository: `https://github.com/kaushal1902/Lead-Manager`.
+4. Configure the settings:
+   * **Name**: `lead-manager-api` (or your choice)
+   * **Root Directory**: `server`
+   * **Runtime**: `Node`
+   * **Build Command**: `npm install && npx prisma generate && npx prisma db push && npm run db:seed && npm run build`
+   * **Start Command**: `npm start`
+   * **Instance Type**: `Free`
+5. Under **Environment Variables**, add:
+   * `DATABASE_URL` = `file:./prisma/dev.db`
+   * `JWT_SECRET` = `your_secure_secret_key_123`
+   * `NODE_ENV` = `production`
+   * `HOST` = `0.0.0.0`
+6. Click **Deploy Web Service**. Render will build the server, seed the Indian leads, and provide a public URL like:
+   `https://lead-manager-api.onrender.com`
+
+*(A pre-configured `render.yaml` Blueprint is also included in the repository for 1-click infrastructure deployment).*
+
+### Step 2: Connect Vercel to Render
+1. Open your project on **[Vercel Dashboard](https://vercel.com)**.
+2. Go to **Settings** ➔ **Environment Variables**.
+3. Add a new variable:
+   * **Key**: `VITE_API_URL`
+   * **Value**: `https://lead-manager-api.onrender.com` *(your Render service URL, without trailing slash)*
+4. Go to the **Deployments** tab, click **Redeploy** on your latest deployment.
+5. 🎉 Your Vercel frontend is now fully connected to the live cloud backend!
+
+---
+
 ## 🔑 Pre-Seeded Test Credentials
 
 Use these accounts to test multi-tenant data isolation, or click **"Test 1-Click Reviewer Logins"** directly in the UI:

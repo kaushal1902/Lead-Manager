@@ -1,7 +1,6 @@
 import type { Lead, LeadStats, LeadsFilterParams, CreateLeadInput, UpdateLeadInput, PaginationMeta } from '../types/lead';
 import { getAuthToken } from './auth';
-
-const API_BASE = '/api';
+import { API_BASE } from './config';
 
 function getAuthHeaders(): HeadersInit {
   const headers: Record<string, string> = {
