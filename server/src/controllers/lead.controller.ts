@@ -25,6 +25,11 @@ export const getLeads = async (req: Request, res: Response, next: NextFunction) 
 
     const where: Prisma.LeadWhereInput = {};
 
+    // Multi-tenant user isolation: If user is logged in, show only their leads
+    if (req.user) {
+      where.userId = req.user.id;
+    }
+
     // Multi-field search (name, email, company)
     if (search && search.trim() !== '') {
       const query = search.trim();
@@ -50,11 +55,11 @@ export const getLeads = async (req: Request, res: Response, next: NextFunction) 
       [sortBy]: order,
     };
 
+    const total = await prisma.lead.count({ where });
+
     // Pagination
     const pageNum = page ? Math.max(1, parseInt(page, 10) || 1) : null;
-    const limitNum = limit ? Math.max(1, parseInt(limit, 10) || 50) : null;
-
-    const total = await prisma.lead.count({ where });
+    const limitNum = limit && limit !== 'all' ? Math.max(1, parseInt(limit, 10) || 10) : null;
 
     let leads;
     if (pageNum && limitNum) {
@@ -73,7 +78,7 @@ export const getLeads = async (req: Request, res: Response, next: NextFunction) 
           total,
           page: pageNum,
           limit: limitNum,
-          totalPages: Math.ceil(total / limitNum),
+          totalPages: Math.ceil(total / limitNum) || 1,
         },
       });
     }
@@ -86,8 +91,11 @@ export const getLeads = async (req: Request, res: Response, next: NextFunction) 
     return res.status(200).json({
       success: true,
       data: leads,
-      meta: {
+      pagination: {
         total,
+        page: 1,
+        limit: total,
+        totalPages: 1,
       },
     });
   } catch (error) {
@@ -95,14 +103,16 @@ export const getLeads = async (req: Request, res: Response, next: NextFunction) 
   }
 };
 
-export const getLeadStats = async (_req: Request, res: Response, next: NextFunction) => {
+export const getLeadStats = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const userScope: Prisma.LeadWhereInput = req.user ? { userId: req.user.id } : {};
+
     const [total, newCount, contactedCount, qualifiedCount, lostCount] = await Promise.all([
-      prisma.lead.count(),
-      prisma.lead.count({ where: { status: LeadStatus.New } }),
-      prisma.lead.count({ where: { status: LeadStatus.Contacted } }),
-      prisma.lead.count({ where: { status: LeadStatus.Qualified } }),
-      prisma.lead.count({ where: { status: LeadStatus.Lost } }),
+      prisma.lead.count({ where: userScope }),
+      prisma.lead.count({ where: { ...userScope, status: LeadStatus.New } }),
+      prisma.lead.count({ where: { ...userScope, status: LeadStatus.Contacted } }),
+      prisma.lead.count({ where: { ...userScope, status: LeadStatus.Qualified } }),
+      prisma.lead.count({ where: { ...userScope, status: LeadStatus.Lost } }),
     ]);
 
     res.status(200).json({
@@ -132,6 +142,11 @@ export const getLeadById = async (req: Request, res: Response, next: NextFunctio
       throw ApiError.notFound(`Lead with ID '${id}' was not found`);
     }
 
+    // Verify ownership if user is logged in
+    if (req.user && lead.userId && lead.userId !== req.user.id) {
+      throw new ApiError(403, 'Forbidden: You do not have access to this lead.', 'FORBIDDEN');
+    }
+
     res.status(200).json({
       success: true,
       data: lead,
@@ -143,6 +158,11 @@ export const getLeadById = async (req: Request, res: Response, next: NextFunctio
 
 export const createLead = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Require authentication to create leads
+    if (!req.user) {
+      throw new ApiError(401, 'Authentication required: Please sign in to add a new lead.', 'UNAUTHORIZED');
+    }
+
     const { name, email, phone, company, source, status, notes } = req.body;
 
     const newLead = await prisma.lead.create({
@@ -154,6 +174,7 @@ export const createLead = async (req: Request, res: Response, next: NextFunction
         source,
         status,
         notes,
+        userId: req.user.id,
       },
     });
 
@@ -169,6 +190,11 @@ export const createLead = async (req: Request, res: Response, next: NextFunction
 
 export const updateLead = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Require authentication to edit leads
+    if (!req.user) {
+      throw new ApiError(401, 'Authentication required: Please sign in to edit this lead.', 'UNAUTHORIZED');
+    }
+
     const id = req.params.id as string;
     const { name, email, phone, company, source, status, notes } = req.body;
 
@@ -178,6 +204,10 @@ export const updateLead = async (req: Request, res: Response, next: NextFunction
 
     if (!existingLead) {
       throw ApiError.notFound(`Cannot update: Lead with ID '${id}' was not found`);
+    }
+
+    if (existingLead.userId && existingLead.userId !== req.user.id) {
+      throw new ApiError(403, 'Forbidden: You do not have permission to update this lead.', 'FORBIDDEN');
     }
 
     const updatedLead = await prisma.lead.update({
@@ -205,6 +235,11 @@ export const updateLead = async (req: Request, res: Response, next: NextFunction
 
 export const updateLeadStatus = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Require authentication to update status
+    if (!req.user) {
+      throw new ApiError(401, 'Authentication required: Please sign in to update lead status.', 'UNAUTHORIZED');
+    }
+
     const id = req.params.id as string;
     const { status } = req.body;
 
@@ -214,6 +249,10 @@ export const updateLeadStatus = async (req: Request, res: Response, next: NextFu
 
     if (!existingLead) {
       throw ApiError.notFound(`Cannot update status: Lead with ID '${id}' was not found`);
+    }
+
+    if (existingLead.userId && existingLead.userId !== req.user.id) {
+      throw new ApiError(403, 'Forbidden: You do not have permission to update this lead.', 'FORBIDDEN');
     }
 
     const updatedLead = await prisma.lead.update({
@@ -233,6 +272,11 @@ export const updateLeadStatus = async (req: Request, res: Response, next: NextFu
 
 export const deleteLead = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // Require authentication to delete leads
+    if (!req.user) {
+      throw new ApiError(401, 'Authentication required: Please sign in to delete this lead.', 'UNAUTHORIZED');
+    }
+
     const id = req.params.id as string;
 
     const existingLead = await prisma.lead.findUnique({
@@ -241,6 +285,10 @@ export const deleteLead = async (req: Request, res: Response, next: NextFunction
 
     if (!existingLead) {
       throw ApiError.notFound(`Cannot delete: Lead with ID '${id}' was not found`);
+    }
+
+    if (existingLead.userId && existingLead.userId !== req.user.id) {
+      throw new ApiError(403, 'Forbidden: You do not have permission to delete this lead.', 'FORBIDDEN');
     }
 
     await prisma.lead.delete({

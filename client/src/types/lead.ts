@@ -11,6 +11,7 @@ export interface Lead {
   source: LeadSource;
   status: LeadStatus;
   notes: string | null;
+  userId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -33,6 +34,13 @@ export interface LeadStats {
   contacted: number;
   qualified: number;
   lost: number;
+}
+
+export interface PaginationMeta {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
 }
 
 export interface LeadsFilterParams {

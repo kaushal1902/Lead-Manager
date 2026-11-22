@@ -1,8 +1,25 @@
-import type { Lead, LeadStats, LeadsFilterParams, CreateLeadInput, UpdateLeadInput } from '../types/lead';
+import type { Lead, LeadStats, LeadsFilterParams, CreateLeadInput, UpdateLeadInput, PaginationMeta } from '../types/lead';
+import { getAuthToken } from './auth';
 
 const API_BASE = '/api';
 
-export async function getLeads(params: LeadsFilterParams = {}): Promise<Lead[]> {
+function getAuthHeaders(): HeadersInit {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  const token = getAuthToken();
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  return headers;
+}
+
+export interface GetLeadsResponse {
+  leads: Lead[];
+  pagination: PaginationMeta;
+}
+
+export async function getLeads(params: LeadsFilterParams = {}): Promise<GetLeadsResponse> {
   const query = new URLSearchParams();
   if (params.search && params.search.trim()) query.set('search', params.search.trim());
   if (params.status && params.status !== 'All') query.set('status', params.status);
@@ -15,16 +32,30 @@ export async function getLeads(params: LeadsFilterParams = {}): Promise<Lead[]> 
   const queryString = query.toString();
   const url = `${API_BASE}/leads${queryString ? `?${queryString}` : ''}`;
 
-  const res = await fetch(url);
+  const res = await fetch(url, {
+    headers: getAuthHeaders(),
+  });
+
   if (!res.ok) {
     throw new Error(`Failed to fetch leads: ${res.statusText}`);
   }
   const json = await res.json();
-  return json.data;
+  return {
+    leads: json.data,
+    pagination: json.pagination || {
+      total: json.data?.length || 0,
+      page: 1,
+      limit: json.data?.length || 10,
+      totalPages: 1,
+    },
+  };
 }
 
 export async function getLeadStats(): Promise<LeadStats> {
-  const res = await fetch(`${API_BASE}/leads/stats`);
+  const res = await fetch(`${API_BASE}/leads/stats`, {
+    headers: getAuthHeaders(),
+  });
+
   if (!res.ok) {
     throw new Error(`Failed to fetch stats: ${res.statusText}`);
   }
@@ -35,9 +66,7 @@ export async function getLeadStats(): Promise<LeadStats> {
 export async function createLead(input: CreateLeadInput): Promise<Lead> {
   const res = await fetch(`${API_BASE}/leads`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getAuthHeaders(),
     body: JSON.stringify(input),
   });
 
@@ -53,9 +82,7 @@ export async function createLead(input: CreateLeadInput): Promise<Lead> {
 export async function updateLead(id: string, input: UpdateLeadInput): Promise<Lead> {
   const res = await fetch(`${API_BASE}/leads/${id}`, {
     method: 'PUT',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getAuthHeaders(),
     body: JSON.stringify(input),
   });
 
@@ -71,9 +98,7 @@ export async function updateLead(id: string, input: UpdateLeadInput): Promise<Le
 export async function updateLeadStatus(id: string, status: string): Promise<Lead> {
   const res = await fetch(`${API_BASE}/leads/${id}/status`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers: getAuthHeaders(),
     body: JSON.stringify({ status }),
   });
 
@@ -88,6 +113,7 @@ export async function updateLeadStatus(id: string, status: string): Promise<Lead
 export async function deleteLead(id: string): Promise<void> {
   const res = await fetch(`${API_BASE}/leads/${id}`, {
     method: 'DELETE',
+    headers: getAuthHeaders(),
   });
 
   const json = await res.json();

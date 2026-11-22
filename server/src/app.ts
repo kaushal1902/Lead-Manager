@@ -1,7 +1,9 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import authRoutes from './routes/auth.routes.js';
 import leadRoutes from './routes/lead.routes.js';
+import { optionalAuth } from './middlewares/auth.js';
 import { errorHandler } from './middlewares/errorHandler.js';
 import { notFoundHandler } from './middlewares/notFoundHandler.js';
 
@@ -22,8 +24,11 @@ app.get('/api/health', (_req: Request, res: Response) => {
   });
 });
 
-// Lead REST Endpoints
-app.use('/api/leads', leadRoutes);
+// Authentication Endpoints
+app.use('/api/auth', authRoutes);
+
+// Lead REST Endpoints (with optional user-scoped auth)
+app.use('/api/leads', optionalAuth, leadRoutes);
 
 // 404 Route Handler
 app.use(notFoundHandler);
