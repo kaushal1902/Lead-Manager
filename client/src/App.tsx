@@ -104,7 +104,7 @@ export default function App() {
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
       setIsOnline(false);
-      showToast('Backend API is disconnected. Please check port 5000.', 'error');
+      showToast('Backend API is disconnected. Connecting to live server...', 'error');
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);

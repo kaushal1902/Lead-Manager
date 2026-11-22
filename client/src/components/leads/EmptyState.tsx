@@ -27,7 +27,7 @@ export default function EmptyState({
         </h3>
 
         <p className="text-sm text-slate-500 max-w-sm mb-6 leading-relaxed">
-          Could not retrieve leads from the backend API. Please make sure the server is running on port 5000 and try again.
+          Could not retrieve leads from the backend API. Please check your network connection and click retry.
         </p>
 
         {onRetry && (

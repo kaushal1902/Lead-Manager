@@ -46,7 +46,7 @@ export default function OfflineBanner({
             </div>
             <div className="text-[11px] text-amber-700 mt-0.5 space-y-0.5">
               {!isProduction ? (
-                <p>Unable to reach the Express server on port 5000. Changes cannot be saved until the connection is restored.</p>
+                <p>Unable to reach the backend server. Changes cannot be saved until the connection is restored.</p>
               ) : isDefaultLocalApi ? (
                 <p>
                   Vercel doesn&apos;t know your backend address. Add <code className="bg-amber-100 px-1 py-0.2 rounded font-mono font-bold text-amber-900">VITE_API_URL=&lt;your-render-url&gt;</code> in Vercel Settings &rarr; Environment Variables, then click <strong>Redeploy</strong>.

@@ -1,12 +1,22 @@
-// Read backend URL from environment (e.g. VITE_API_URL on Vercel).
-// Defaults to the live Render production backend if not explicitly overridden.
-const rawApiUrl =
-  (import.meta.env.VITE_API_URL as string | undefined)?.trim() ||
-  'https://lead-manager-ot5b.onrender.com';
+// Live Render production backend URL
+const LIVE_BACKEND_URL = 'https://lead-manager-ot5b.onrender.com/api';
 
-function resolveApiBase(url: string): string {
-  const clean = url.replace(/\/+$/, '');
+function resolveApiBase(): string {
+  // If in production (Vercel deployment), strictly use the live Render backend
+  if (import.meta.env.PROD) {
+    const envUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+    if (envUrl && !envUrl.includes('localhost') && !envUrl.includes('127.0.0.1')) {
+      const clean = envUrl.replace(/\/+$/, '');
+      return clean.endsWith('/api') ? clean : `${clean}/api`;
+    }
+    return LIVE_BACKEND_URL;
+  }
+
+  // In development, respect VITE_API_URL if set, otherwise default to live backend or /api
+  const rawApiUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+  if (!rawApiUrl) return LIVE_BACKEND_URL;
+  const clean = rawApiUrl.replace(/\/+$/, '');
   return clean.endsWith('/api') ? clean : `${clean}/api`;
 }
 
-export const API_BASE = resolveApiBase(rawApiUrl);
+export const API_BASE = resolveApiBase();
