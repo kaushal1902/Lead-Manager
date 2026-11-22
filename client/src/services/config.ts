@@ -1,9 +1,10 @@
-// Read backend URL from environment (e.g. https://lead-manager-api.onrender.com).
-// Defaults to '/api' in local development (proxied by Vite to localhost:5000).
-const rawApiUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+// Read backend URL from environment (e.g. VITE_API_URL on Vercel).
+// Defaults to the live Render production backend if not explicitly overridden.
+const rawApiUrl =
+  (import.meta.env.VITE_API_URL as string | undefined)?.trim() ||
+  'https://lead-manager-ot5b.onrender.com';
 
-function resolveApiBase(url?: string): string {
-  if (!url) return '/api';
+function resolveApiBase(url: string): string {
   const clean = url.replace(/\/+$/, '');
   return clean.endsWith('/api') ? clean : `${clean}/api`;
 }

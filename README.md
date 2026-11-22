@@ -210,17 +210,15 @@ To make the application 100% live on the internet, deploy the backend to **[Rend
    * `JWT_SECRET` = `your_secure_secret_key_123`
    * `NODE_ENV` = `production`
    * `HOST` = `0.0.0.0`
-6. Click **Deploy Web Service**. Render will build the server, seed the Indian leads, and provide a public URL like:
-   `https://lead-manager-api.onrender.com`
-
-*(A pre-configured `render.yaml` Blueprint is also included in the repository for 1-click infrastructure deployment).*
+   * **Live Render API**: `https://lead-manager-ot5b.onrender.com`
+   * **Health Check**: `https://lead-manager-ot5b.onrender.com/api/health`
 
 ### Step 2: Connect Vercel to Render
 1. Open your project on **[Vercel Dashboard](https://vercel.com)**.
 2. Go to **Settings** ➔ **Environment Variables**.
 3. Add a new variable:
    * **Key**: `VITE_API_URL`
-   * **Value**: `https://lead-manager-api.onrender.com` *(your Render service URL, without trailing slash)*
+   * **Value**: `https://lead-manager-ot5b.onrender.com`
 4. Go to the **Deployments** tab, click **Redeploy** on your latest deployment.
 5. 🎉 Your Vercel frontend is now fully connected to the live cloud backend!
 
